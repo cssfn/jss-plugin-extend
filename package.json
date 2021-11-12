@@ -1,0 +1,29 @@
+{
+  "name": "@cssfn/jss-plugin-extend",
+  "version": "1.0.0",
+  "description": "A plugin for JSS.",
+  "main": "dist/jss-plugin-extend.js",
+  "types": "dist/jss-plugin-extend.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cssfn/jss-plugin-extend.git"
+  },
+  "keywords": [
+    "jss",
+    "css",
+    "plugin"
+  ],
+  "author": "heymarco",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cssfn/jss-plugin-extend/issues"
+  },
+  "homepage": "https://github.com/cssfn/jss-plugin-extend#readme",
+  "dependencies": {
+    "jss": "^10.8.2",
+    "tiny-warning": "^1.0.3"
+  }
+}
