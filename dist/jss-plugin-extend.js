@@ -1,11 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.mergeStyle = void 0;
 // others libs:
-const tiny_warning_1 = __importDefault(require("tiny-warning"));
+import warning from 'tiny-warning';
 const isLiteralObject = (object) => object && (typeof (object) === 'object') && !Array.isArray(object);
 const isStyle = (object) => isLiteralObject(object);
 const ruleGenerateId = (rule, sheet) => rule.name ?? rule.key;
@@ -20,7 +14,7 @@ const mergeExtend = (style, rule, sheet) => {
             continue; // null & undefined => skip
         //#region extend using a `Style`
         if (isStyle(singleExtend)) {
-            (0, exports.mergeStyle)(style, singleExtend, rule, sheet);
+            mergeStyle(style, singleExtend, rule, sheet);
         } // if
         //#endregion extend using a `Style`
         //#region extend using a rule name
@@ -29,7 +23,7 @@ const mergeExtend = (style, rule, sheet) => {
                 const refRule = sheet.getRule(singleExtend);
                 if (refRule) {
                     if (refRule === rule) {
-                        (0, tiny_warning_1.default)(false, `[JSS] A rule tries to extend itself \n${rule.toString()}`);
+                        warning(false, `[JSS] A rule tries to extend itself \n${rule.toString()}`);
                         // TODO: detect circular ref, causing infinite recursive
                     }
                     else {
@@ -37,7 +31,7 @@ const mergeExtend = (style, rule, sheet) => {
                         // warning: calling `mergeStyle` might causing infinite recursive if the `refRule` is `rule` or circular ref
                         const ruleStyle = refRule.options?.parent?.rules?.raw?.[singleExtend];
                         if (ruleStyle) {
-                            (0, exports.mergeStyle)(style, ruleStyle, rule, sheet);
+                            mergeStyle(style, ruleStyle, rule, sheet);
                         } // if
                     } // if
                 } // if
@@ -69,7 +63,7 @@ const mergeLiteral = (style, newStyle, rule, sheet) => {
             else {
                 // both `newPropValue` & `currentPropValue` are `Style` => merge them recursively (deeply):
                 const currentValueClone = { ...currentPropValue }; // clone the `currentPropValue` to avoid side effect, because the `currentPropValue` is not **the primary object** we're working on
-                (0, exports.mergeStyle)(currentValueClone, newPropValue, rule, sheet);
+                mergeStyle(currentValueClone, newPropValue, rule, sheet);
                 // merging style prop no need to rearrange the prop position
                 style[propName] = currentValueClone; // set the mutated `currentValueClone` back to `style`
             } // if
@@ -77,12 +71,11 @@ const mergeLiteral = (style, newStyle, rule, sheet) => {
     } // for
 };
 // we export `mergeStyle` so it reusable:
-const mergeStyle = (style, newStyle, rule, sheet) => {
+export const mergeStyle = (style, newStyle, rule, sheet) => {
     const newStyleClone = { ...newStyle }; // clone the `newStyle` to avoid side effect, because the `newStyle` is not **the primary object** we're working on
     mergeExtend(newStyleClone, rule, sheet);
     mergeLiteral(style, newStyleClone, rule, sheet);
 };
-exports.mergeStyle = mergeStyle;
 const onProcessStyle = (style, rule, sheet) => {
     mergeExtend(style, rule, sheet);
     //#region handle `@keyframes`
@@ -131,10 +124,9 @@ const onChangeValue = (value, prop, rule) => {
     } // if
     return null; // do not set the value in the core
 };
-function pluginExtend() {
+export default function pluginExtend() {
     return {
         onProcessStyle,
         onChangeValue,
     };
 }
-exports.default = pluginExtend;

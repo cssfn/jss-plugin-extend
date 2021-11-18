@@ -1,7 +1,8 @@
 {
   "name": "@cssfn/jss-plugin-extend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A plugin for JSS.",
+  "type": "module",
   "main": "dist/jss-plugin-extend.js",
   "types": "dist/jss-plugin-extend.d.ts",
   "scripts": {
