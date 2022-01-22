@@ -1,6 +1,6 @@
 {
   "name": "@cssfn/jss-plugin-extend",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A plugin for JSS.",
   "type": "module",
   "main": "dist/jss-plugin-extend.js",
@@ -24,7 +24,8 @@
   },
   "homepage": "https://github.com/cssfn/jss-plugin-extend#readme",
   "dependencies": {
-    "jss": "^10.8.2",
+    "@cssfn/types": "^1.0.4",
+    "jss": "^10.9.0",
     "tiny-warning": "^1.0.3"
   }
 }

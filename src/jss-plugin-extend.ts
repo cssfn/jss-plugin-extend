@@ -7,6 +7,11 @@ import type {
     StyleSheet,
 }                           from 'jss'           // base technology of our cssfn components
 
+// cssfn:
+import type {
+    ValueOf,
+}                           from '@cssfn/types'       // cssfn's types
+
 // others libs:
 import warning              from 'tiny-warning'
 
@@ -25,10 +30,6 @@ type Style              = JssStyle & { extend?: Optional<Extend> } // add `exten
 // export the upgraded `JssStyle`:
 export type { Style, Style as ExtendableStyle, Style as JssStyle }
 const isStyle           = (object: any): object is Style => isLiteralObject(object);
-
-
-
-const ruleGenerateId    = (rule: Rule, sheet?: StyleSheet) => (rule as any).name ?? rule.key;
 
 
 
@@ -84,7 +85,10 @@ const mergeExtend       = (style: Style, rule?: Rule, sheet?: StyleSheet): void 
     delete style.extend; // delete `extend` prop, so another plugins won't see this
 }
 const mergeLiteral      = (style: Style & LiteralObject, newStyle: Style, rule?: Rule, sheet?: StyleSheet): void => {
-    for (const [propName, newPropValue] of Object.entries(newStyle)) { // loop through `newStyle`'s props
+    for (const [propName, newPropValue] of [
+        ...Object.entries(newStyle),
+        ...Object.getOwnPropertySymbols(newStyle).map((sym): [symbol, ValueOf<typeof newStyle>] => [sym, (newStyle as any)[sym] as any]),
+    ]) { // loop through `newStyle`'s props
         // `extend` is a special prop name that we don't handle here:
         if (propName === 'extend') continue; // skip `extend` prop
         
@@ -92,17 +96,17 @@ const mergeLiteral      = (style: Style & LiteralObject, newStyle: Style, rule?:
         
         if (!isStyle(newPropValue)) {
             // `newPropValue` is not a `Style` => unmergeable => add/overwrite `newPropValue` into `style`:
-            delete style[propName]; // delete the old prop (if any), so the new prop always placed at the end of LiteralObject
-            style[propName] = newPropValue; // add/overwrite
+            delete style[propName as string]; // delete the old prop (if any), so the new prop always placed at the end of LiteralObject
+            style[propName as string] = newPropValue; // add/overwrite
         }
         else {
             // `newPropValue` is a `Style` => possibility to merge with `currentPropValue`
 
-            const currentPropValue = style[propName];
+            const currentPropValue = style[propName as string];
             if (!isStyle(currentPropValue)) {
                 // `currentPropValue` is not a `Style` => unmergeable => add/overwrite `newPropValue` into `style`:
-                delete style[propName]; // delete the old prop (if any), so the new prop always placed at the end of LiteralObject
-                style[propName] = newPropValue; // add/overwrite
+                delete style[propName as string]; // delete the old prop (if any), so the new prop always placed at the end of LiteralObject
+                style[propName as string] = newPropValue; // add/overwrite
             }
             else {
                 // both `newPropValue` & `currentPropValue` are `Style` => merge them recursively (deeply):
@@ -111,7 +115,7 @@ const mergeLiteral      = (style: Style & LiteralObject, newStyle: Style, rule?:
                 mergeStyle(currentValueClone, newPropValue, rule, sheet);
                 
                 // merging style prop no need to rearrange the prop position
-                style[propName] = currentValueClone; // set the mutated `currentValueClone` back to `style`
+                style[propName as string] = currentValueClone; // set the mutated `currentValueClone` back to `style`
             } // if
         } // if
     } // for
@@ -126,68 +130,52 @@ export const mergeStyle = (style: Style, newStyle: Style, rule?: Rule, sheet?: S
 
 
 
-const onProcessStyle = (style: Style, rule: Rule, sheet?: StyleSheet): Style => {
+const onProcessStyle = (style: Style|null, rule: Rule, sheet?: StyleSheet): Style => {
+    if (!style) return {};
+    
+    
+    
     mergeExtend(style, rule, sheet);
-
-
-
-    //#region handle `@keyframes`
-    if (sheet) {
-        for (const [propName, propValue] of Object.entries(style)) {
-            if (propName.startsWith('@keyframes ')) {
-                // move `@keyframes` to StyleSheet:
-                sheet.addRule(propName, propValue as Style, {
-                    generateId : ruleGenerateId,
-                });
-
-
-                
-                // delete `@keyframes` prop, so another plugins won't see this:
-                delete (style as any)[propName];
-            } // if
-        } // for
-    } // if
-    //#endregion handle `@keyframes`
 
 
 
     return style;
 };
 
+const unextendedProp = Symbol();
 const onChangeValue  = (value: any, prop: string, rule: Rule): string|null|false => {
     if (prop !== 'extend') return value; // do not modify any props other than `extend`
 
 
 
-    const __prevObject = '__prevObject';
     if (typeof(value) === 'object') {
-        const ruleProp = (rule as any).prop;
-        if (typeof(ruleProp) === 'function') {
-            for (const [propName, propValue] of Object.entries(value)) {
-                ruleProp(propName, propValue);
+        const defineProp = (rule as any).prop;
+        if (typeof(defineProp) === 'function') {
+            for (const [propName, propValue] of Object.entries(value)) { // no need to iterate Symbol(s), because [prop: Symbol] is for storing nested rule
+                defineProp(propName, propValue);
             } // for
 
 
             
             // store the object to the rule, so we can remove all props we've set later:
-            (rule as any)[__prevObject] = value;
+            (rule as any)[unextendedProp] = value;
         } // if
     }
     else if ((value === null) || (value === false)) {
         // remove all props we've set before (if any):
-        const prevObject = (rule as any)[__prevObject];
+        const prevObject = (rule as any)[unextendedProp];
         if (prevObject) {
-            const ruleProp = (rule as any).prop;
-            if (typeof(ruleProp) === 'function') {
-                for (const propName of Object.keys(prevObject)) {
-                    ruleProp(propName, null);
+            const defineProp = (rule as any).prop;
+            if (typeof(defineProp) === 'function') {
+                for (const propName of Object.keys(prevObject)) { // no need to iterate Symbol(s), because [prop: Symbol] is for storing nested rule
+                    defineProp(propName, null);
                 } // for
             } // if
 
 
 
             // clear the stored object:
-            delete (rule as any)[__prevObject];
+            delete (rule as any)[unextendedProp];
         } // if
     } // if
 

@@ -2,7 +2,6 @@
 import warning from 'tiny-warning';
 const isLiteralObject = (object) => object && (typeof (object) === 'object') && !Array.isArray(object);
 const isStyle = (object) => isLiteralObject(object);
-const ruleGenerateId = (rule, sheet) => rule.name ?? rule.key;
 const mergeExtend = (style, rule, sheet) => {
     const extend = style.extend;
     if (!extend)
@@ -43,7 +42,10 @@ const mergeExtend = (style, rule, sheet) => {
     delete style.extend; // delete `extend` prop, so another plugins won't see this
 };
 const mergeLiteral = (style, newStyle, rule, sheet) => {
-    for (const [propName, newPropValue] of Object.entries(newStyle)) { // loop through `newStyle`'s props
+    for (const [propName, newPropValue] of [
+        ...Object.entries(newStyle),
+        ...Object.getOwnPropertySymbols(newStyle).map((sym) => [sym, newStyle[sym]]),
+    ]) { // loop through `newStyle`'s props
         // `extend` is a special prop name that we don't handle here:
         if (propName === 'extend')
             continue; // skip `extend` prop
@@ -77,49 +79,37 @@ export const mergeStyle = (style, newStyle, rule, sheet) => {
     mergeLiteral(style, newStyleClone, rule, sheet);
 };
 const onProcessStyle = (style, rule, sheet) => {
+    if (!style)
+        return {};
     mergeExtend(style, rule, sheet);
-    //#region handle `@keyframes`
-    if (sheet) {
-        for (const [propName, propValue] of Object.entries(style)) {
-            if (propName.startsWith('@keyframes ')) {
-                // move `@keyframes` to StyleSheet:
-                sheet.addRule(propName, propValue, {
-                    generateId: ruleGenerateId,
-                });
-                // delete `@keyframes` prop, so another plugins won't see this:
-                delete style[propName];
-            } // if
-        } // for
-    } // if
-    //#endregion handle `@keyframes`
     return style;
 };
+const unextendedProp = Symbol();
 const onChangeValue = (value, prop, rule) => {
     if (prop !== 'extend')
         return value; // do not modify any props other than `extend`
-    const __prevObject = '__prevObject';
     if (typeof (value) === 'object') {
-        const ruleProp = rule.prop;
-        if (typeof (ruleProp) === 'function') {
-            for (const [propName, propValue] of Object.entries(value)) {
-                ruleProp(propName, propValue);
+        const defineProp = rule.prop;
+        if (typeof (defineProp) === 'function') {
+            for (const [propName, propValue] of Object.entries(value)) { // no need to iterate Symbol(s), because [prop: Symbol] is for storing nested rule
+                defineProp(propName, propValue);
             } // for
             // store the object to the rule, so we can remove all props we've set later:
-            rule[__prevObject] = value;
+            rule[unextendedProp] = value;
         } // if
     }
     else if ((value === null) || (value === false)) {
         // remove all props we've set before (if any):
-        const prevObject = rule[__prevObject];
+        const prevObject = rule[unextendedProp];
         if (prevObject) {
-            const ruleProp = rule.prop;
-            if (typeof (ruleProp) === 'function') {
-                for (const propName of Object.keys(prevObject)) {
-                    ruleProp(propName, null);
+            const defineProp = rule.prop;
+            if (typeof (defineProp) === 'function') {
+                for (const propName of Object.keys(prevObject)) { // no need to iterate Symbol(s), because [prop: Symbol] is for storing nested rule
+                    defineProp(propName, null);
                 } // for
             } // if
             // clear the stored object:
-            delete rule[__prevObject];
+            delete rule[unextendedProp];
         } // if
     } // if
     return null; // do not set the value in the core
